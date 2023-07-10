@@ -1,0 +1,32 @@
+version: "2"
+services:
+
+  postgres_test:
+    image: "postgres"
+    stop_signal: SIGINT                 # Fast Shutdown mode
+    volumes:
+      - .run/db_test:/var/lib/postgresql/data"
+    env_file:
+      - .env.secret
+    restart: unless-stopped
+
+  app_test:
+    build:
+      dockerfile: Dockerfile-test
+      context: .
+    depends_on:
+      - postgres_test
+    ports:
+      - "5005:5005"
+    volumes:
+     - .:/usr/app
+    restart: unless-stopped
+    working_dir: /usr/app
+    command: ./server.sh
+#    command: tail -F anything
+    env_file:
+      - .env.secret
+    environment:
+      FRONTEND_VIRTUAL_HOST: "http://localhost"
+      VIRTUAL_HOST: "localhost"
+      POSTGRES_HOST: "postgres_test"

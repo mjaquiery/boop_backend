@@ -1,0 +1,15 @@
+version: "2"
+services:
+  app:
+    volumes:
+      - .:/usr/app
+    environment:
+      DJANGO_SETTINGS: "dev"
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  nginx-proxy-acme-companion:
+    restart: "no"
+    entrypoint: [ "echo", "Service nginx-proxy-acme-companion disabled in development mode" ]

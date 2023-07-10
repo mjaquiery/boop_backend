@@ -1,0 +1,70 @@
+version: "2"
+services:
+  app:
+    image: app
+    build:
+      dockerfile: Dockerfile
+      context: .
+    depends_on:
+      - postgres
+    volumes:
+     - .run/static_files:/static
+     - .run/captured_images:/captured_images
+    working_dir: /usr/app
+    environment:
+      VIRTUAL_HOST: "${VIRTUAL_HOST_ROOT}"
+      LETSENCRYPT_HOST: "${VIRTUAL_HOST_ROOT}"
+    env_file:
+     - ./.env
+     - ./.env.secret
+    restart: unless-stopped
+    command: ./server.sh
+
+  postgres:
+    image: "postgres:15"
+    stop_signal: SIGINT                 # Fast Shutdown mode
+    volumes:
+      - .run/db:/var/lib/postgresql/data
+    env_file:
+      - ./.env
+      - ./.env.secret
+    restart: unless-stopped
+
+  nginx-proxy-server:
+    build: nginx-proxy
+    container_name: nginx-proxy-server
+    restart: always
+    ports:
+      - "443:443"
+      - "80:80"
+    environment:
+      DEFAULT_HOST: "${VIRTUAL_HOST_ROOT}"
+    volumes:
+      - .run/static_files:/app/static
+      - .run/certs:/etc/nginx/certs
+      - .run/html:/usr/share/nginx/html
+      - vhost:/etc/nginx/vhost.d
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    depends_on:
+      - app
+
+  nginx-proxy-acme-companion:
+    image: "nginxproxy/acme-companion:2.2.8"
+    env_file:
+      - .env
+    environment:
+      NGINX_PROXY_CONTAINER: "nginx-proxy-server"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - .run/certs:/etc/nginx/certs
+      - .run/html:/usr/share/nginx/html
+      - vhost:/etc/nginx/vhost.d
+      - acme:/etc/acme.sh
+    depends_on:
+      - nginx-proxy-server
+
+volumes:
+#  certs:
+#  html:
+  vhost:
+  acme:
